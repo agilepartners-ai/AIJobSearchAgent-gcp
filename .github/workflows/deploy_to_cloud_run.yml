@@ -30,6 +30,7 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
+          project_id: ${{ env.PROJECT_ID }}
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: ${{ env.GH_SA_EMAIL }}
 
@@ -39,7 +40,7 @@ jobs:
       - name: Submit build to Cloud Build
         run: |
           gcloud builds submit \
-            --config=cloudbuild.yaml \
+            --config=cloudbuild.yml \
             --substitutions=_GAR_LOCATION=${{ env.GAR_LOCATION }},_REPOSITORY=${{ env.REPOSITORY }},_SERVICE_NAME=${{ env.SERVICE_NAME }},_SERVICE_ACCOUNT_EMAIL=${{ env.SERVICE_ACCOUNT_EMAIL }} \
             .
 
