@@ -39,7 +39,10 @@ jobs:
 
       - name: Submit build to Cloud Build
         run: |
-          gcloud builds triggers run ${{ secrets.CLOUD_BUILD_TRIGGER_NAME }} --region=${{ secrets.CLOUD_BUILD_TRIGGER_REGION }} --branch="main"
+          gcloud builds triggers run "${{ secrets.CLOUD_BUILD_TRIGGER_NAME }}" \
+            --region="${{ secrets.CLOUD_BUILD_TRIGGER_REGION }}" \
+            --branch="main" \
+            --substitutions="_GAR_LOCATION=${{ env.GAR_LOCATION }},_REPOSITORY=${{ env.REPOSITORY }},_SERVICE_NAME=${{ env.SERVICE_NAME }},_SERVICE_ACCOUNT_EMAIL=${{ env.SERVICE_ACCOUNT_EMAIL }}"
 
       - name: Get service URL
         id: get-url
