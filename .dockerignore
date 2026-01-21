@@ -48,7 +48,6 @@ docker-compose*
 
 # CI/CD
 .github/
-ci-cd-cloudrun/
 
 # Documentation
 README.md
