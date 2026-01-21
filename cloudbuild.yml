@@ -67,18 +67,12 @@ steps:
         fi
     id: 'push-image'
 
-  # Step 3: Deploy to Cloud Run with environment variables from .env file
+  # Step 3: Deploy to Cloud Run (env vars are provided via substitution variables)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        # Check if .env file exists
-        if [ ! -f ".env" ]; then
-          echo "Error: .env file not found. Please create a .env file with your environment variables."
-          exit 1
-        fi
-        
         # Deploy to Cloud Run with environment variables from substitution variables
         echo "Deploying to Cloud Run with environment variables from substitution variables..."
         if [ -z '${COMMIT_SHA}' ]; then
