@@ -16,17 +16,17 @@ steps:
 
         echo "Resolved build inputs:"
         echo "  PROJECT_ID=${PROJECT_ID}"
-        echo "  _GAR_LOCATION=${GAR_LOCATION}"
-        echo "  _REPOSITORY=${REPOSITORY}"
-        echo "  _SERVICE_NAME=${SERVICE_NAME}"
-        echo "  _SERVICE_ACCOUNT_EMAIL=${SERVICE_ACCOUNT_EMAIL}"
-        echo "  COMMIT_SHA=${COMMIT_SHA_SUB}"
+        echo "  _GAR_LOCATION=$$GAR_LOCATION"
+        echo "  _REPOSITORY=$$REPOSITORY"
+        echo "  _SERVICE_NAME=$$SERVICE_NAME"
+        echo "  _SERVICE_ACCOUNT_EMAIL=$$SERVICE_ACCOUNT_EMAIL"
+        echo "  COMMIT_SHA=$$COMMIT_SHA_SUB"
 
         # Fail fast if required substitutions are missing (prevents invalid Docker tags like -docker.pkg.dev/...//:sha)
         missing=0
-        if [ -z "$GAR_LOCATION" ]; then echo "ERROR: Missing required substitution _GAR_LOCATION (e.g. us-central1)"; missing=1; fi
-        if [ -z "$REPOSITORY" ]; then echo "ERROR: Missing required substitution _REPOSITORY (Artifact Registry repo name)"; missing=1; fi
-        if [ -z "$SERVICE_NAME" ]; then echo "ERROR: Missing required substitution _SERVICE_NAME (Cloud Run service name)"; missing=1; fi
+        if [ -z "$$GAR_LOCATION" ]; then echo "ERROR: Missing required substitution _GAR_LOCATION (e.g. us-central1)"; missing=1; fi
+        if [ -z "$$REPOSITORY" ]; then echo "ERROR: Missing required substitution _REPOSITORY (Artifact Registry repo name)"; missing=1; fi
+        if [ -z "$$SERVICE_NAME" ]; then echo "ERROR: Missing required substitution _SERVICE_NAME (Cloud Run service name)"; missing=1; fi
         if [ "$missing" -ne 0 ]; then
           echo ""
           echo "Fix: set these substitutions in your Cloud Build trigger, or pass them when starting the trigger/build."
@@ -36,12 +36,12 @@ steps:
           exit 1
         fi
 
-        TAG="$COMMIT_SHA_SUB"
-        if [ -z "$TAG" ]; then TAG="latest"; fi
-        IMAGE_URI="${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}:${TAG}"
+        TAG="$$COMMIT_SHA_SUB"
+        if [ -z "$$TAG" ]; then TAG="latest"; fi
+        IMAGE_URI="$$GAR_LOCATION-docker.pkg.dev/${PROJECT_ID}/$$REPOSITORY/$$SERVICE_NAME:$$TAG"
         
         # Build the Docker image with build arguments from substitution variables
-        echo "Building image: ${IMAGE_URI}"
+        echo "Building image: $$IMAGE_URI"
         docker build \
           --build-arg NEXT_PUBLIC_FIREBASE_API_KEY='${_NEXT_PUBLIC_FIREBASE_API_KEY}' \
           --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN='${_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}' \
@@ -57,7 +57,7 @@ steps:
           --build-arg NEXT_PUBLIC_RESUME_API_BASE_URL='${_NEXT_PUBLIC_RESUME_API_BASE_URL}' \
           --build-arg NEXT_PUBLIC_RESUME_API_MODEL_TYPE='${_NEXT_PUBLIC_RESUME_API_MODEL_TYPE}' \
           --build-arg NEXT_PUBLIC_RESUME_API_MODEL='${_NEXT_PUBLIC_RESUME_API_MODEL}' \
-          -t "${IMAGE_URI}" \
+          -t "$$IMAGE_URI" \
           -f Dockerfile \
           .
     id: 'build-image'
@@ -73,12 +73,12 @@ steps:
         REPOSITORY='${_REPOSITORY}'
         SERVICE_NAME='${_SERVICE_NAME}'
         COMMIT_SHA_SUB='${COMMIT_SHA}'
-        TAG="$COMMIT_SHA_SUB"
-        if [ -z "$TAG" ]; then TAG="latest"; fi
-        IMAGE_URI="${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}:${TAG}"
+        TAG="$$COMMIT_SHA_SUB"
+        if [ -z "$$TAG" ]; then TAG="latest"; fi
+        IMAGE_URI="$$GAR_LOCATION-docker.pkg.dev/${PROJECT_ID}/$$REPOSITORY/$$SERVICE_NAME:$$TAG"
 
-        echo "Pushing image: ${IMAGE_URI}"
-        docker push "${IMAGE_URI}"
+        echo "Pushing image: $$IMAGE_URI"
+        docker push "$$IMAGE_URI"
     id: 'push-image'
 
   # Step 3: Deploy to Cloud Run (env vars are provided via substitution variables)
@@ -94,14 +94,21 @@ steps:
         SERVICE_NAME='${_SERVICE_NAME}'
         SERVICE_ACCOUNT_EMAIL='${_SERVICE_ACCOUNT_EMAIL}'
         COMMIT_SHA_SUB='${COMMIT_SHA}'
-        TAG="$COMMIT_SHA_SUB"
-        if [ -z "$TAG" ]; then TAG="latest"; fi
-        IMAGE_URI="${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}:${TAG}"
+        TAG="$$COMMIT_SHA_SUB"
+        if [ -z "$$TAG" ]; then TAG="latest"; fi
+        IMAGE_URI="$$GAR_LOCATION-docker.pkg.dev/${PROJECT_ID}/$$REPOSITORY/$$SERVICE_NAME:$$TAG"
 
-        echo "Deploying image: ${IMAGE_URI}"
-        gcloud run deploy "${SERVICE_NAME}" \
-          --image="${IMAGE_URI}" \
-          --region="${GAR_LOCATION}" \
+        echo "Deploying image: $$IMAGE_URI"
+
+        # Only set an explicit service account if provided; otherwise Cloud Run uses its default.
+        SERVICE_ACCOUNT_FLAG=""
+        if [ -n "$$SERVICE_ACCOUNT_EMAIL" ]; then
+          SERVICE_ACCOUNT_FLAG="--service-account=$$SERVICE_ACCOUNT_EMAIL"
+        fi
+
+        gcloud run deploy "$$SERVICE_NAME" \
+          --image="$$IMAGE_URI" \
+          --region="$$GAR_LOCATION" \
           --platform=managed \
           --ingress=all \
           --port=8080 \
@@ -110,7 +117,7 @@ steps:
           --min-instances=0 \
           --max-instances=10 \
           --timeout=300 \
-          --service-account="${SERVICE_ACCOUNT_EMAIL}" \
+          $$SERVICE_ACCOUNT_FLAG \
           --set-env-vars="NODE_ENV=production,NEXT_PUBLIC_FIREBASE_API_KEY='${_NEXT_PUBLIC_FIREBASE_API_KEY}',NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN='${_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}',NEXT_PUBLIC_FIREBASE_PROJECT_ID='${_NEXT_PUBLIC_FIREBASE_PROJECT_ID}',NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET='${_NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}',NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID='${_NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}',NEXT_PUBLIC_FIREBASE_APP_ID='${_NEXT_PUBLIC_FIREBASE_APP_ID}',NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID='${_NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}',NEXT_PUBLIC_JSEARCH_API_KEY='${_NEXT_PUBLIC_JSEARCH_API_KEY}',NEXT_PUBLIC_JSEARCH_API_HOST='${_NEXT_PUBLIC_JSEARCH_API_HOST}',NEXT_PUBLIC_TAVUS_API_KEY='${_NEXT_PUBLIC_TAVUS_API_KEY}',NEXT_PUBLIC_OPENAI_API_KEY='${_NEXT_PUBLIC_OPENAI_API_KEY}',NEXT_PUBLIC_RESUME_API_BASE_URL='${_NEXT_PUBLIC_RESUME_API_BASE_URL}',NEXT_PUBLIC_RESUME_API_MODEL_TYPE='${_NEXT_PUBLIC_RESUME_API_MODEL_TYPE}',NEXT_PUBLIC_RESUME_API_MODEL='${_NEXT_PUBLIC_RESUME_API_MODEL}'"
     id: 'deploy-to-cloudrun'
 
@@ -119,9 +126,10 @@ steps:
 # gcloud builds submit --config=cloudbuild.yaml \
 #   --substitutions=_GAR_LOCATION=us-central1,_REPOSITORY=myjobsearchagent-repo,_SERVICE_NAME=myjobsearchagent,_SERVICE_ACCOUNT_EMAIL=your-sa@project.iam.gserviceaccount.com .
 substitutions:
-  _GAR_LOCATION: ''
-  _REPOSITORY: ''
-  _SERVICE_NAME: ''
+  # Defaults for push-triggered builds (override in trigger or CLI as needed)
+  _GAR_LOCATION: 'us-central1'
+  _REPOSITORY: 'myjobsearchagent-repo'
+  _SERVICE_NAME: 'myjobsearchagent'
   _SERVICE_ACCOUNT_EMAIL: ''
   # Environment variables (passed from GitHub Secrets)
   _NEXT_PUBLIC_FIREBASE_API_KEY: ''
