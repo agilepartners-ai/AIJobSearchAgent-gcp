@@ -82,6 +82,7 @@ steps:
             --region=${_GAR_LOCATION} \
             --platform=managed \
             --allow-unauthenticated \
+            --ingress=all \
             --port=8080 \
             --memory=2Gi \
             --cpu=2 \
@@ -90,6 +91,13 @@ steps:
             --timeout=300 \
             --service-account=${_SERVICE_ACCOUNT_EMAIL} \
             --set-env-vars="NODE_ENV=production,NEXT_PUBLIC_FIREBASE_API_KEY='${_NEXT_PUBLIC_FIREBASE_API_KEY}',NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN='${_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}',NEXT_PUBLIC_FIREBASE_PROJECT_ID='${_NEXT_PUBLIC_FIREBASE_PROJECT_ID}',NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET='${_NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}',NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID='${_NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}',NEXT_PUBLIC_FIREBASE_APP_ID='${_NEXT_PUBLIC_FIREBASE_APP_ID}',NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID='${_NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}',NEXT_PUBLIC_JSEARCH_API_KEY='${_NEXT_PUBLIC_JSEARCH_API_KEY}',NEXT_PUBLIC_JSEARCH_API_HOST='${_NEXT_PUBLIC_JSEARCH_API_HOST}',NEXT_PUBLIC_TAVUS_API_KEY='${_NEXT_PUBLIC_TAVUS_API_KEY}',NEXT_PUBLIC_OPENAI_API_KEY='${_NEXT_PUBLIC_OPENAI_API_KEY}',NEXT_PUBLIC_RESUME_API_BASE_URL='${_NEXT_PUBLIC_RESUME_API_BASE_URL}',NEXT_PUBLIC_RESUME_API_MODEL_TYPE='${_NEXT_PUBLIC_RESUME_API_MODEL_TYPE}',NEXT_PUBLIC_RESUME_API_MODEL='${_NEXT_PUBLIC_RESUME_API_MODEL}'"
+
+          # Ensure the service is publicly invokable (sometimes org policy or IAM propagation
+          # causes `--allow-unauthenticated` to not fully apply).
+          gcloud run services add-iam-policy-binding ${_SERVICE_NAME} \
+            --region=${_GAR_LOCATION} \
+            --member="allUsers" \
+            --role="roles/run.invoker" || true
         else
           echo "Deploying image: ${_GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:${COMMIT_SHA}"
           gcloud run deploy ${_SERVICE_NAME} \
@@ -97,6 +105,7 @@ steps:
             --region=${_GAR_LOCATION} \
             --platform=managed \
             --allow-unauthenticated \
+            --ingress=all \
             --port=8080 \
             --memory=2Gi \
             --cpu=1 \
@@ -105,6 +114,11 @@ steps:
             --timeout=300 \
             --service-account=${_SERVICE_ACCOUNT_EMAIL} \
             --set-env-vars="NODE_ENV=production,NEXT_PUBLIC_FIREBASE_API_KEY='${_NEXT_PUBLIC_FIREBASE_API_KEY}',NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN='${_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}',NEXT_PUBLIC_FIREBASE_PROJECT_ID='${_NEXT_PUBLIC_FIREBASE_PROJECT_ID}',NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET='${_NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}',NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID='${_NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}',NEXT_PUBLIC_FIREBASE_APP_ID='${_NEXT_PUBLIC_FIREBASE_APP_ID}',NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID='${_NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}',NEXT_PUBLIC_JSEARCH_API_KEY='${_NEXT_PUBLIC_JSEARCH_API_KEY}',NEXT_PUBLIC_JSEARCH_API_HOST='${_NEXT_PUBLIC_JSEARCH_API_HOST}',NEXT_PUBLIC_TAVUS_API_KEY='${_NEXT_PUBLIC_TAVUS_API_KEY}',NEXT_PUBLIC_OPENAI_API_KEY='${_NEXT_PUBLIC_OPENAI_API_KEY}',NEXT_PUBLIC_RESUME_API_BASE_URL='${_NEXT_PUBLIC_RESUME_API_BASE_URL}',NEXT_PUBLIC_RESUME_API_MODEL_TYPE='${_NEXT_PUBLIC_RESUME_API_MODEL_TYPE}',NEXT_PUBLIC_RESUME_API_MODEL='${_NEXT_PUBLIC_RESUME_API_MODEL}'"
+
+          gcloud run services add-iam-policy-binding ${_SERVICE_NAME} \
+            --region=${_GAR_LOCATION} \
+            --member="allUsers" \
+            --role="roles/run.invoker" || true
         fi
     id: 'deploy-to-cloudrun'
 
